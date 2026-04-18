@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="Herra AI Teaching Server"
+    Language="1033"
+    Version="1.0.0"
+    Manufacturer="Titan Information Technology Solutions"
+    UpgradeCode="A7D0C9B7-6E52-4E7B-9E61-5A91A4D2F301">
+
+    <Package
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Platform="x64" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Herra AI Teaching Server is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Herra AI Teaching">
+          <Directory Id="BACKENDDIR" Name="backend" />
+          <Directory Id="FRONTENDDIR" Name="frontend">
+            <Directory Id="FRONTENDDISTDIR" Name="dist" />
+          </Directory>
+          <Directory Id="SERVICEDIR" Name="service" />
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="MainFeature" Title="Herra AI Teaching Server" Level="1">
+      <ComponentRef Id="CmpRunHerraServerPs1" />
+      <ComponentRef Id="CmpStartHerraServerBat" />
+      <ComponentRef Id="CmpInstallHerraServerWindowsBat" />
+      <ComponentRef Id="CmpInstallHerraServiceWindowsBat" />
+      <ComponentRef Id="CmpRemoveHerraServiceWindowsBat" />
+      <ComponentRef Id="CmpBackendServerAppPy" />
+      <ComponentRef Id="CmpServiceHerraServerExe" />
+      <ComponentRef Id="CmpServiceHerraServerXml" />
+      <ComponentRef Id="CmpFrontendEnv" />
+      <ComponentRef Id="CmpFrontendDistIndex" />
+    </Feature>
+
+    <Component Id="CmpRunHerraServerPs1" Directory="INSTALLFOLDER" Guid="5B60292C-6B8A-4A46-B9B4-49B4F4C0A101" Win64="yes">
+      <File Id="FilRunHerraServerPs1" Source="..\run_herra_server.ps1" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpStartHerraServerBat" Directory="INSTALLFOLDER" Guid="0E17D5D5-B69D-4FD6-B177-4E4100A4A102" Win64="yes">
+      <File Id="FilStartHerraServerBat" Source="..\start_herra_server.bat" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpInstallHerraServerWindowsBat" Directory="INSTALLFOLDER" Guid="91C37B21-D8D8-4EAA-85CC-113B1C37A103" Win64="yes">
+      <File Id="FilInstallHerraServerWindowsBat" Source="..\install_herra_server_windows.bat" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpInstallHerraServiceWindowsBat" Directory="INSTALLFOLDER" Guid="D2D409BB-8A6E-4B72-9E8D-6D7E55C4A104" Win64="yes">
+      <File Id="FilInstallHerraServiceWindowsBat" Source="..\install_herra_service_windows.bat" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpRemoveHerraServiceWindowsBat" Directory="INSTALLFOLDER" Guid="7A0C4A18-FD29-4E55-820A-0C5C9F23A105" Win64="yes">
+      <File Id="FilRemoveHerraServiceWindowsBat" Source="..\remove_herra_service_windows.bat" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpBackendServerAppPy" Directory="BACKENDDIR" Guid="F4D2B924-20C6-4A8E-915A-5D4F7A5FA106" Win64="yes">
+      <File Id="FilBackendServerAppPy" Source="..\backend\server_app.py" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpServiceHerraServerExe" Directory="SERVICEDIR" Guid="A0EE0C1F-7EE4-4C47-A8B7-8B14F4D1A107" Win64="yes">
+      <File Id="FilServiceHerraServerExe" Source="..\service\HerraServer.exe" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpServiceHerraServerXml" Directory="SERVICEDIR" Guid="20A66D26-8F01-4A6E-A51A-C0FA31D1A108" Win64="yes">
+      <File Id="FilServiceHerraServerXml" Source="..\service\HerraServer.xml" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpFrontendEnv" Directory="FRONTENDDIR" Guid="CE7E9D4B-73E4-488E-8A0A-9D057E1AA109" Win64="yes">
+      <File Id="FilFrontendEnv" Source="..\frontend\.env" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpFrontendDistIndex" Directory="FRONTENDDISTDIR" Guid="B56E1F0E-5C56-4A67-A527-BA0A2A8BA110" Win64="yes">
+      <File Id="FilFrontendDistIndex" Source="..\frontend\dist\index.html" KeyPath="yes" />
+    </Component>
+
+  </Product>
+</Wix>

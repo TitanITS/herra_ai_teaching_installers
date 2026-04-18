@@ -1,0 +1,1 @@
+from backend.ai_adapters.adapter_manager import adapter_manager

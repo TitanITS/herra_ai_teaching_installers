@@ -1,0 +1,140 @@
+export type PlatformSalesContact = {
+    full_name: string;
+    title: string;
+    email: string;
+    main_phone: string;
+    extension: string;
+    cell_phone: string;
+    recommended_permission_role: string;
+    decision_priority: string;
+};
+
+export type PlatformSalesService = {
+    service_name: string;
+    service_type: string;
+    status: string;
+    billing_cycle: string;
+    price_display: string;
+};
+
+export type PlatformSalesOpportunityListItem = {
+    id: number;
+    opportunity_kind: string;
+    renewal_of_customer_id: number | null;
+    renewal_term_number: number | null;
+    customer_number_preview: string;
+    legal_name: string;
+    display_name: string;
+    slug: string;
+    authorized_purchasing_contact: string;
+    sales_stage: string;
+    quote_status: string;
+    contract_status: string;
+    sales_consultant_name: string;
+    estimated_monthly_value_display: string;
+    expected_close_date: string;
+    proposed_service_count: number;
+    handoff_customer_id: number | null;
+    payment_confirmed: boolean;
+    account_manager_intro_complete: boolean;
+    ready_for_implementation: boolean;
+    auto_customer_ready: boolean;
+};
+
+export type PlatformSalesOpportunityDetail = {
+    id: number;
+    opportunity_kind: string;
+    renewal_of_customer_id: number | null;
+    renewal_term_number: number | null;
+    customer_number_preview: string;
+    legal_name: string;
+    display_name: string;
+    slug: string;
+    authorized_purchasing_contact: string;
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    country: string;
+    main_phone: string;
+    extension: string;
+    cell_phone: string;
+    website: string;
+    industry: string;
+    company_size: string;
+    sales_consultant_name: string;
+    account_manager_name: string;
+    implementation_engineer_name: string;
+    sales_stage: string;
+    quote_status: string;
+    contract_status: string;
+    timezone: string;
+    expected_close_date: string;
+    desired_go_live_date: string;
+    estimated_monthly_value_display: string;
+    proposed_connector_count: number;
+    proposed_license_count: number;
+    payment_confirmed: boolean;
+    account_manager_intro_complete: boolean;
+    ready_for_implementation: boolean;
+    auto_customer_ready: boolean;
+    notes: string;
+    handoff_customer_id: number | null;
+    contacts: PlatformSalesContact[];
+    services: PlatformSalesService[];
+};
+
+export type PlatformSalesCreateContactInput = {
+    full_name: string;
+    title: string;
+    email: string;
+    main_phone: string;
+    extension: string;
+    cell_phone: string;
+    recommended_permission_role: string;
+    decision_priority: string;
+};
+
+export type PlatformSalesCreateServiceInput = {
+    service_name: string;
+    service_type: string;
+    status: string;
+    billing_cycle: string;
+    price_display: string;
+};
+
+export type PlatformSalesCreateOpportunityInput = {
+    legal_name: string;
+    display_name: string;
+    slug: string;
+    authorized_purchasing_contact: string;
+    address: string;
+    city: string;
+    state: string;
+    zip_code: string;
+    country: string;
+    main_phone: string;
+    extension: string;
+    cell_phone: string;
+    website: string;
+    industry: string;
+    company_size: string;
+    sales_consultant_name: string;
+    account_manager_name: string;
+    implementation_engineer_name: string;
+    sales_stage: string;
+    quote_status: string;
+    contract_status: string;
+    timezone: string;
+    expected_close_date: string;
+    desired_go_live_date: string;
+    estimated_monthly_value_display: string;
+    proposed_connector_count: number;
+    proposed_license_count: number;
+    payment_confirmed: boolean;
+    account_manager_intro_complete: boolean;
+    ready_for_implementation: boolean;
+    notes: string;
+    contacts: PlatformSalesCreateContactInput[];
+    services: PlatformSalesCreateServiceInput[];
+};

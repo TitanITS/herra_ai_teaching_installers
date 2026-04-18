@@ -1,0 +1,7 @@
+@echo off
+set HERRA_API_BASE_URL=http://192.168.142.1:8000
+set HERRA_CONNECTOR_NAME=HER-SRV01-Connector
+set HERRA_CONNECTOR_OS=windows
+set HERRA_CONNECTOR_KEY=herra-connector-local-step4
+set HERRA_CONNECTOR_POLL_SECONDS=5
+set HERRA_CONNECTOR_LOG_DIR=C:\Herra_Connector\logs

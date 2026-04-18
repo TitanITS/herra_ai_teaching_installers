@@ -1,0 +1,16 @@
+:root {
+    --titan-bg: #07111f;
+    --titan-bg-secondary: #0b1830;
+    --titan-panel: rgba(15, 30, 56, 0.78);
+    --titan-panel-strong: rgba(12, 25, 48, 0.92);
+    --titan-border: rgba(170, 198, 255, 0.14);
+    --titan-text: #f5f8ff;
+    --titan-text-soft: #b9c5de;
+    --titan-accent: #72b7ff;
+    --titan-success: #64d9a0;
+    --titan-warning: #f2c46f;
+    --titan-danger: #ff8f8f;
+    --titan-radius-lg: 22px;
+    --titan-radius-md: 16px;
+    --titan-shadow: 0 18px 60px rgba(0, 0, 0, 0.32);
+}

@@ -1,0 +1,25 @@
+<service>
+  <id>HerraServer</id>
+  <name>Herra Server</name>
+  <description>Herra AI Teaching private deployment server</description>
+
+  <executable>powershell.exe</executable>
+  <arguments>-ExecutionPolicy Bypass -NoProfile -File "%BASE%\..\run_herra_server.ps1"</arguments>
+
+  <workingdirectory>%BASE%\..</workingdirectory>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="20 sec" />
+  <onfailure action="restart" delay="30 sec" />
+
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+
+  <stoptimeout>30 sec</stoptimeout>
+  <waithint>15 sec</waithint>
+</service>
