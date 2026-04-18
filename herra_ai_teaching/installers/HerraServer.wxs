@@ -17,69 +17,109 @@
     <MajorUpgrade DowngradeErrorMessage="A newer version of Herra AI Teaching Server is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
+    <Property Id="ARPNOMODIFY" Value="1" />
+
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="Herra AI Teaching">
-          <Directory Id="BACKENDDIR" Name="backend" />
-          <Directory Id="FRONTENDDIR" Name="frontend">
-            <Directory Id="FRONTENDDISTDIR" Name="dist" />
+        <Directory Id="COMPANYDIR" Name="TitanITS">
+          <Directory Id="INSTALLFOLDER" Name="Herra AI Teaching">
+            <Directory Id="BACKENDDIR" Name="backend" />
+            <Directory Id="FRONTENDDIR" Name="frontend">
+              <Directory Id="FRONTENDDISTDIR" Name="dist" />
+            </Directory>
+            <Directory Id="SERVICEDIR" Name="service" />
+            <Directory Id="VENVROOTDIR" Name=".venv" />
           </Directory>
-          <Directory Id="SERVICEDIR" Name="service" />
         </Directory>
       </Directory>
     </Directory>
 
     <Feature Id="MainFeature" Title="Herra AI Teaching Server" Level="1">
       <ComponentRef Id="CmpRunHerraServerPs1" />
+      <ComponentRef Id="CmpDeploymentBootstrapJson" />
       <ComponentRef Id="CmpStartHerraServerBat" />
       <ComponentRef Id="CmpInstallHerraServerWindowsBat" />
       <ComponentRef Id="CmpInstallHerraServiceWindowsBat" />
       <ComponentRef Id="CmpRemoveHerraServiceWindowsBat" />
-      <ComponentRef Id="CmpBackendServerAppPy" />
-      <ComponentRef Id="CmpServiceHerraServerExe" />
+      <ComponentRef Id="CmpRequirementsTxt" />
+      <ComponentRef Id="CmpReadmeMd" />
+      <ComponentRef Id="CmpServiceHerraServer" />
       <ComponentRef Id="CmpServiceHerraServerXml" />
-      <ComponentRef Id="CmpFrontendEnv" />
-      <ComponentRef Id="CmpFrontendDistIndex" />
+      <ComponentRef Id="CmpInstallCleanup" />
+      <ComponentGroupRef Id="CG_Backend" />
+      <ComponentGroupRef Id="CG_FrontendDist" />
+      <ComponentGroupRef Id="CG_Venv" />
     </Feature>
 
-    <Component Id="CmpRunHerraServerPs1" Directory="INSTALLFOLDER" Guid="5B60292C-6B8A-4A46-B9B4-49B4F4C0A101" Win64="yes">
+    <Component Id="CmpRunHerraServerPs1" Directory="INSTALLFOLDER" Guid="6A5E5B11-7A54-4A7F-9E18-0CDA1E0B0101" Win64="yes">
       <File Id="FilRunHerraServerPs1" Source="..\run_herra_server.ps1" KeyPath="yes" />
     </Component>
 
-    <Component Id="CmpStartHerraServerBat" Directory="INSTALLFOLDER" Guid="0E17D5D5-B69D-4FD6-B177-4E4100A4A102" Win64="yes">
+    <Component Id="CmpDeploymentBootstrapJson" Directory="INSTALLFOLDER" Guid="5A4B5C6D-7E8F-4910-A1B2-C3D4E5F60111" Win64="yes">
+      <File Id="FilDeploymentBootstrapJson" Source="..\deployment_bootstrap.json" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpStartHerraServerBat" Directory="INSTALLFOLDER" Guid="1E9E15AE-262D-44A0-84D4-E614A6D30102" Win64="yes">
       <File Id="FilStartHerraServerBat" Source="..\start_herra_server.bat" KeyPath="yes" />
     </Component>
 
-    <Component Id="CmpInstallHerraServerWindowsBat" Directory="INSTALLFOLDER" Guid="91C37B21-D8D8-4EAA-85CC-113B1C37A103" Win64="yes">
+    <Component Id="CmpInstallHerraServerWindowsBat" Directory="INSTALLFOLDER" Guid="B18FC834-0BF7-450B-B2DE-3DFCF7D10103" Win64="yes">
       <File Id="FilInstallHerraServerWindowsBat" Source="..\install_herra_server_windows.bat" KeyPath="yes" />
     </Component>
 
-    <Component Id="CmpInstallHerraServiceWindowsBat" Directory="INSTALLFOLDER" Guid="D2D409BB-8A6E-4B72-9E8D-6D7E55C4A104" Win64="yes">
+    <Component Id="CmpInstallHerraServiceWindowsBat" Directory="INSTALLFOLDER" Guid="41D73790-74F0-4542-B6C8-6C918D190104" Win64="yes">
       <File Id="FilInstallHerraServiceWindowsBat" Source="..\install_herra_service_windows.bat" KeyPath="yes" />
     </Component>
 
-    <Component Id="CmpRemoveHerraServiceWindowsBat" Directory="INSTALLFOLDER" Guid="7A0C4A18-FD29-4E55-820A-0C5C9F23A105" Win64="yes">
+    <Component Id="CmpRemoveHerraServiceWindowsBat" Directory="INSTALLFOLDER" Guid="AA2E66B5-C6C5-40D6-A2FF-DDB47FE10105" Win64="yes">
       <File Id="FilRemoveHerraServiceWindowsBat" Source="..\remove_herra_service_windows.bat" KeyPath="yes" />
     </Component>
 
-    <Component Id="CmpBackendServerAppPy" Directory="BACKENDDIR" Guid="F4D2B924-20C6-4A8E-915A-5D4F7A5FA106" Win64="yes">
-      <File Id="FilBackendServerAppPy" Source="..\backend\server_app.py" KeyPath="yes" />
+    <Component Id="CmpRequirementsTxt" Directory="INSTALLFOLDER" Guid="2DF56E7A-2584-412A-82BA-490D67340106" Win64="yes">
+      <File Id="FilRequirementsTxt" Source="..\requirements.txt" KeyPath="yes" />
     </Component>
 
-    <Component Id="CmpServiceHerraServerExe" Directory="SERVICEDIR" Guid="A0EE0C1F-7EE4-4C47-A8B7-8B14F4D1A107" Win64="yes">
+    <Component Id="CmpReadmeMd" Directory="INSTALLFOLDER" Guid="F6C09D95-E454-4973-A540-243CBEC70107" Win64="yes">
+      <File Id="FilReadmeMd" Source="..\README.md" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CmpServiceHerraServer" Directory="SERVICEDIR" Guid="4B4E77ED-2FDB-45C4-8D1D-E7C3C8930108" Win64="yes">
       <File Id="FilServiceHerraServerExe" Source="..\service\HerraServer.exe" KeyPath="yes" />
+      <ServiceInstall
+        Id="SvcInstallHerraServer"
+        Type="ownProcess"
+        Name="HerraServer"
+        DisplayName="Herra Server"
+        Description="Herra AI Teaching private deployment server"
+        Start="auto"
+        ErrorControl="normal"
+        Vital="yes"
+        Account="LocalSystem" />
+      <ServiceControl
+        Id="SvcControlHerraServer"
+        Name="HerraServer"
+        Start="install"
+        Stop="both"
+        Remove="uninstall"
+        Wait="yes" />
     </Component>
 
-    <Component Id="CmpServiceHerraServerXml" Directory="SERVICEDIR" Guid="20A66D26-8F01-4A6E-A51A-C0FA31D1A108" Win64="yes">
+    <Component Id="CmpServiceHerraServerXml" Directory="SERVICEDIR" Guid="AE95A623-5150-4E18-AB06-3B6322300109" Win64="yes">
       <File Id="FilServiceHerraServerXml" Source="..\service\HerraServer.xml" KeyPath="yes" />
     </Component>
 
-    <Component Id="CmpFrontendEnv" Directory="FRONTENDDIR" Guid="CE7E9D4B-73E4-488E-8A0A-9D057E1AA109" Win64="yes">
-      <File Id="FilFrontendEnv" Source="..\frontend\.env" KeyPath="yes" />
-    </Component>
-
-    <Component Id="CmpFrontendDistIndex" Directory="FRONTENDDISTDIR" Guid="B56E1F0E-5C56-4A67-A527-BA0A2A8BA110" Win64="yes">
-      <File Id="FilFrontendDistIndex" Source="..\frontend\dist\index.html" KeyPath="yes" />
+    <Component Id="CmpInstallCleanup" Directory="INSTALLFOLDER" Guid="F87178D0-D147-4A39-9D8D-0044CB1F0110" Win64="yes">
+      <CreateFolder />
+      <RemoveFile Id="RemoveServiceLogs" Directory="SERVICEDIR" Name="*.log" On="both" />
+      <RemoveFile Id="RemoveServiceWrapperLogs" Directory="SERVICEDIR" Name="*.wrapper.log" On="both" />
+      <RemoveFile Id="RemoveRootDatabase" Directory="INSTALLFOLDER" Name="herra_ai_teaching.db" On="uninstall" />
+      <RemoveFolder Id="RemoveServiceDir" Directory="SERVICEDIR" On="uninstall" />
+      <RemoveFolder Id="RemoveFrontendDistDir" Directory="FRONTENDDISTDIR" On="uninstall" />
+      <RemoveFolder Id="RemoveFrontendDir" Directory="FRONTENDDIR" On="uninstall" />
+      <RemoveFolder Id="RemoveBackendDir" Directory="BACKENDDIR" On="uninstall" />
+      <RemoveFolder Id="RemoveVenvDir" Directory="VENVROOTDIR" On="uninstall" />
+      <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+      <RegistryValue Root="HKLM" Key="Software\TitanITS\HerraAITeaching" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
     </Component>
 
   </Product>

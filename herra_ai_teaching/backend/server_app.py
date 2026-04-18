@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -21,6 +21,7 @@ from backend.api.contracts import (
 from backend.api.ingest import router as ingest_router
 from backend.api.jobs import router as jobs_router
 from backend.api.system import router as system_router
+from backend.license_manager import bootstrap_license_if_missing, get_license_state, get_license_status_payload
 from backend.storage.database import init_db
 
 APP_TITLE = "Herra AI Teaching Server"
@@ -36,12 +37,22 @@ DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:8001",
 ]
 
+PROTECTED_API_PREFIXES = (
+    "/system",
+    "/ingest",
+    "/connectors",
+    "/jobs",
+    "/chat",
+)
+
+LICENSE_STATUS_PATH = "/server/license/status"
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 
 
 @app.on_event("startup")
 def startup_init_db() -> None:
+    bootstrap_license_if_missing()
     init_db()
 
 
@@ -68,6 +79,31 @@ async def request_id_middleware(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def license_enforcement_middleware(request: Request, call_next):
+    path = request.url.path
+
+    if any(path.startswith(prefix) for prefix in PROTECTED_API_PREFIXES):
+        license_state = get_license_state()
+        if not license_state.allows_runtime:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "success": False,
+                    "error": {
+                        "code": "LICENSE_INACTIVE",
+                        "message": "This private deployment license is inactive.",
+                        "details": license_state.to_dict(),
+                    },
+                    "meta": {
+                        "request_id": get_request_id(request),
+                    },
+                },
+            )
+
+    return await call_next(request)
+
+
 app.include_router(system_router)
 app.include_router(ingest_router)
 app.include_router(connectors_router)
@@ -77,6 +113,7 @@ app.include_router(chat_router)
 
 @app.get("/server/health")
 def server_health() -> dict[str, object]:
+    license_state = get_license_state()
     return {
         "ok": True,
         "app": APP_TITLE,
@@ -85,7 +122,19 @@ def server_health() -> dict[str, object]:
         "frontend_dist_exists": FRONTEND_DIST_DIR.exists(),
         "frontend_index_exists": (FRONTEND_DIST_DIR / "index.html").exists(),
         "frontend_assets_exists": FRONTEND_ASSETS_DIR.exists(),
+        "license_status": license_state.status,
+        "license_allows_runtime": license_state.allows_runtime,
+        "license_reason": license_state.reason,
+        "license_source": license_state.source,
+        "license_file": license_state.license_file,
+        "license_last_validated_at": license_state.last_validated_at,
+        "license_last_remote_check_at": license_state.last_remote_check_at,
     }
+
+
+@app.get(LICENSE_STATUS_PATH)
+def server_license_status() -> dict[str, object]:
+    return get_license_status_payload()
 
 
 if FRONTEND_ASSETS_DIR.exists():
@@ -107,7 +156,7 @@ def serve_frontend_root():
 
 @app.get("/{full_path:path}", include_in_schema=False)
 def serve_frontend_spa(full_path: str):
-    if full_path.startswith("api/") or full_path == "server/health":
+    if full_path.startswith("api/") or full_path in {"server/health", "server/license/status"}:
         return {
             "detail": "Route not found.",
             "path": full_path,

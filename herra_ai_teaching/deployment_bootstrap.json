@@ -1,0 +1,11 @@
+{
+    "activation_url": "http://127.0.0.1:8000/api/private-deployments/activate",
+    "validation_url": "http://127.0.0.1:8000/api/private-deployments/license/validate",
+    "installer_master_secret": "MyInstallerActivationSecret123!",
+    "license_shared_secret": "MyPrivateDeploymentLicenseSecret123!",
+    "customer_account_name": "Demo Customer",
+    "deployment_name": "Herra Private Deployment",
+    "platform": "windows",
+    "environment_type": "production",
+    "region": "customer-site"
+}
