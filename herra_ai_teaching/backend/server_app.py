@@ -27,6 +27,7 @@ from backend.license_manager import (
     bootstrap_license_if_missing,
     get_license_state,
     get_license_status_payload,
+    get_license_ui_state_payload,
 )
 from backend.storage.database import init_db
 
@@ -52,9 +53,16 @@ PROTECTED_API_PREFIXES = (
 )
 
 LICENSE_STATUS_PATH = "/server/license/status"
+LICENSE_UI_STATE_PATH = "/server/license/ui-state"
 BACKGROUND_REVALIDATE_LOOP_SECONDS = 15
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
+
+
+def _apply_no_store_headers(response) -> None:
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
 
 
 async def _license_revalidation_loop() -> None:
@@ -116,7 +124,7 @@ async def license_enforcement_middleware(request: Request, call_next):
             license_state = get_license_state(force_refresh=True)
 
         if not license_state.allows_runtime:
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=403,
                 content={
                     "success": False,
@@ -130,6 +138,8 @@ async def license_enforcement_middleware(request: Request, call_next):
                     },
                 },
             )
+            _apply_no_store_headers(response)
+            return response
 
     return await call_next(request)
 
@@ -142,29 +152,42 @@ app.include_router(chat_router)
 
 
 @app.get("/server/health")
-def server_health() -> dict[str, object]:
+def server_health():
     license_state = get_license_state(force_refresh=True)
-    return {
-        "ok": True,
-        "app": APP_TITLE,
-        "version": APP_VERSION,
-        "backend_dir_exists": BACKEND_DIR.exists(),
-        "frontend_dist_exists": FRONTEND_DIST_DIR.exists(),
-        "frontend_index_exists": (FRONTEND_DIST_DIR / "index.html").exists(),
-        "frontend_assets_exists": FRONTEND_ASSETS_DIR.exists(),
-        "license_status": license_state.status,
-        "license_allows_runtime": license_state.allows_runtime,
-        "license_reason": license_state.reason,
-        "license_source": license_state.source,
-        "license_file": license_state.license_file,
-        "license_last_validated_at": license_state.last_validated_at,
-        "license_last_remote_check_at": license_state.last_remote_check_at,
-    }
+    response = JSONResponse(
+        content={
+            "ok": True,
+            "app": APP_TITLE,
+            "version": APP_VERSION,
+            "backend_dir_exists": BACKEND_DIR.exists(),
+            "frontend_dist_exists": FRONTEND_DIST_DIR.exists(),
+            "frontend_index_exists": (FRONTEND_DIST_DIR / "index.html").exists(),
+            "frontend_assets_exists": FRONTEND_ASSETS_DIR.exists(),
+            "license_status": license_state.status,
+            "license_allows_runtime": license_state.allows_runtime,
+            "license_reason": license_state.reason,
+            "license_source": license_state.source,
+            "license_file": license_state.license_file,
+            "license_last_validated_at": license_state.last_validated_at,
+            "license_last_remote_check_at": license_state.last_remote_check_at,
+        }
+    )
+    _apply_no_store_headers(response)
+    return response
 
 
 @app.get(LICENSE_STATUS_PATH)
-def server_license_status() -> dict[str, object]:
-    return get_license_status_payload(force_refresh=True)
+def server_license_status():
+    response = JSONResponse(content=get_license_status_payload(force_refresh=True))
+    _apply_no_store_headers(response)
+    return response
+
+
+@app.get(LICENSE_UI_STATE_PATH)
+def server_license_ui_state():
+    response = JSONResponse(content=get_license_ui_state_payload(force_refresh=True))
+    _apply_no_store_headers(response)
+    return response
 
 
 if FRONTEND_ASSETS_DIR.exists():
@@ -186,7 +209,7 @@ def serve_frontend_root():
 
 @app.get("/{full_path:path}", include_in_schema=False)
 def serve_frontend_spa(full_path: str):
-    if full_path.startswith("api/") or full_path in {"server/health", "server/license/status"}:
+    if full_path.startswith("api/") or full_path in {"server/health", "server/license/status", "server/license/ui-state"}:
         return {
             "detail": "Route not found.",
             "path": full_path,

@@ -622,6 +622,32 @@ def get_license_status_payload(force_refresh: bool = False) -> dict[str, Any]:
     return {"ok": state.ok, "app": APP_NAME, "version": APP_VERSION, "license": state.to_dict()}
 
 
+def get_license_ui_state_payload(force_refresh: bool = False) -> dict[str, Any]:
+    state = get_license_state(force_refresh=force_refresh)
+    poll_interval_seconds = _active_revalidate_seconds() if state.allows_runtime else _inactive_revalidate_seconds()
+
+    return {
+        "ok": True,
+        "app": APP_NAME,
+        "version": APP_VERSION,
+        "license": {
+            "status": state.status,
+            "allows_runtime": state.allows_runtime,
+            "reason": state.reason,
+            "source": state.source,
+            "deployment_id": state.deployment_id,
+            "deployment_name": state.deployment_name,
+            "last_validated_at": state.last_validated_at,
+            "last_remote_check_at": state.last_remote_check_at,
+            "remote_enforcement_enabled": state.remote_enforcement_enabled,
+            "ui_action": "allow" if state.allows_runtime else "lock",
+            "poll_interval_seconds": poll_interval_seconds,
+            "retry_after_seconds": poll_interval_seconds,
+            "contact_support": not state.allows_runtime,
+        },
+    }
+
+
 def _print_status() -> int:
     print(json.dumps(get_license_status_payload(force_refresh=True), indent=2))
     return 0
