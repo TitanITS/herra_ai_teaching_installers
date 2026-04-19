@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -21,7 +23,11 @@ from backend.api.contracts import (
 from backend.api.ingest import router as ingest_router
 from backend.api.jobs import router as jobs_router
 from backend.api.system import router as system_router
-from backend.license_manager import bootstrap_license_if_missing, get_license_state, get_license_status_payload
+from backend.license_manager import (
+    bootstrap_license_if_missing,
+    get_license_state,
+    get_license_status_payload,
+)
 from backend.storage.database import init_db
 
 APP_TITLE = "Herra AI Teaching Server"
@@ -46,14 +52,34 @@ PROTECTED_API_PREFIXES = (
 )
 
 LICENSE_STATUS_PATH = "/server/license/status"
+BACKGROUND_REVALIDATE_LOOP_SECONDS = 30
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 
 
+async def _license_revalidation_loop() -> None:
+    while True:
+        try:
+            get_license_state(force_refresh=False)
+        except Exception:
+            pass
+        await asyncio.sleep(BACKGROUND_REVALIDATE_LOOP_SECONDS)
+
+
 @app.on_event("startup")
-def startup_init_db() -> None:
+async def startup_init_db() -> None:
     bootstrap_license_if_missing()
     init_db()
+    app.state.license_revalidation_task = asyncio.create_task(_license_revalidation_loop())
+
+
+@app.on_event("shutdown")
+async def shutdown_revalidation_task() -> None:
+    task = getattr(app.state, "license_revalidation_task", None)
+    if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 app.add_middleware(
@@ -84,7 +110,7 @@ async def license_enforcement_middleware(request: Request, call_next):
     path = request.url.path
 
     if any(path.startswith(prefix) for prefix in PROTECTED_API_PREFIXES):
-        license_state = get_license_state()
+        license_state = get_license_state(force_refresh=False)
         if not license_state.allows_runtime:
             return JSONResponse(
                 status_code=403,
@@ -113,7 +139,7 @@ app.include_router(chat_router)
 
 @app.get("/server/health")
 def server_health() -> dict[str, object]:
-    license_state = get_license_state()
+    license_state = get_license_state(force_refresh=False)
     return {
         "ok": True,
         "app": APP_TITLE,
@@ -134,7 +160,7 @@ def server_health() -> dict[str, object]:
 
 @app.get(LICENSE_STATUS_PATH)
 def server_license_status() -> dict[str, object]:
-    return get_license_status_payload()
+    return get_license_status_payload(force_refresh=False)
 
 
 if FRONTEND_ASSETS_DIR.exists():

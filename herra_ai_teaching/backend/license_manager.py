@@ -24,6 +24,9 @@ DEFAULT_OFFLINE_GRACE_HOURS = 72
 DEFAULT_BOOTSTRAP_TERM_DAYS = 365
 LICENSE_STATUSES_ALLOWING_RUNTIME = {"active"}
 
+DEFAULT_ACTIVE_REVALIDATE_SECONDS = 120
+DEFAULT_INACTIVE_REVALIDATE_SECONDS = 30
+
 PROGRAM_DATA_ROOT = Path(os.getenv("PROGRAMDATA", r"C:\ProgramData"))
 LICENSE_BASE_DIR = PROGRAM_DATA_ROOT / "TitanITS" / "HerraAITeaching"
 LICENSE_FILE = LICENSE_BASE_DIR / "license.json"
@@ -232,6 +235,24 @@ def ensure_deployment_config(bootstrap_path: Path = DEFAULT_BOOTSTRAP_PATH) -> d
     return activate_from_bootstrap(bootstrap_path)
 
 
+def _active_revalidate_seconds() -> int:
+    raw = os.getenv("HERRA_LICENSE_ACTIVE_REVALIDATE_SECONDS", "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        value = DEFAULT_ACTIVE_REVALIDATE_SECONDS
+    return max(15, value)
+
+
+def _inactive_revalidate_seconds() -> int:
+    raw = os.getenv("HERRA_LICENSE_INACTIVE_REVALIDATE_SECONDS", "").strip()
+    try:
+        value = int(raw)
+    except ValueError:
+        value = DEFAULT_INACTIVE_REVALIDATE_SECONDS
+    return max(10, value)
+
+
 def _new_license_payload() -> dict[str, Any]:
     now = _utc_now()
     expires_at = now + timedelta(days=DEFAULT_BOOTSTRAP_TERM_DAYS)
@@ -300,7 +321,16 @@ class LicenseState:
 REMOTE_TIMEOUT_SECONDS = 10
 
 
-def _build_state(payload: dict[str, Any], *, ok: bool, allows_runtime: bool, reason: str, source: str, fingerprint_match: bool, signature_valid: bool) -> LicenseState:
+def _build_state(
+    payload: dict[str, Any],
+    *,
+    ok: bool,
+    allows_runtime: bool,
+    reason: str,
+    source: str,
+    fingerprint_match: bool,
+    signature_valid: bool,
+) -> LicenseState:
     return LicenseState(
         ok=ok,
         status=str(payload.get("status") or "unknown"),
@@ -439,16 +469,44 @@ def _within_offline_grace(payload: dict[str, Any]) -> bool:
     return _utc_now() <= last_validated_at + timedelta(hours=grace_hours)
 
 
-def get_license_state() -> LicenseState:
+def _remote_check_due(payload: dict[str, Any]) -> bool:
+    status = str(payload.get("status") or DEFAULT_LICENSE_STATUS).strip().lower()
+    interval_seconds = _active_revalidate_seconds() if status in LICENSE_STATUSES_ALLOWING_RUNTIME else _inactive_revalidate_seconds()
+    last_remote_check_at = _parse_iso8601(payload.get("last_remote_check_at"))
+    if last_remote_check_at is None:
+        return True
+    return _utc_now() >= last_remote_check_at + timedelta(seconds=interval_seconds)
+
+
+def refresh_license_state(force: bool = False) -> LicenseState:
     payload = bootstrap_license_if_missing()
 
     signature_valid = _signature_is_valid(payload)
     if not signature_valid:
-        return _build_state(payload, ok=False, allows_runtime=False, reason="Local license signature is invalid. The license file appears to have been modified.", source="local_signature_check", fingerprint_match=False, signature_valid=False)
+        return _build_state(
+            payload,
+            ok=False,
+            allows_runtime=False,
+            reason="Local license signature is invalid. The license file appears to have been modified.",
+            source="local_signature_check",
+            fingerprint_match=False,
+            signature_valid=False,
+        )
 
-    fingerprint_match = hmac.compare_digest(str(payload.get("machine_fingerprint") or ""), get_machine_fingerprint())
+    fingerprint_match = hmac.compare_digest(
+        str(payload.get("machine_fingerprint") or ""),
+        get_machine_fingerprint(),
+    )
     if not fingerprint_match:
-        return _build_state(payload, ok=False, allows_runtime=False, reason="Machine fingerprint mismatch detected. This installation is not licensed for this device.", source="local_fingerprint_check", fingerprint_match=False, signature_valid=True)
+        return _build_state(
+            payload,
+            ok=False,
+            allows_runtime=False,
+            reason="Machine fingerprint mismatch detected. This installation is not licensed for this device.",
+            source="local_fingerprint_check",
+            fingerprint_match=False,
+            signature_valid=True,
+        )
 
     expires_at = _parse_iso8601(payload.get("expires_at"))
     if expires_at is not None and _utc_now() > expires_at:
@@ -457,35 +515,110 @@ def get_license_state() -> LicenseState:
         payload["disable_reason"] = "The private deployment license has expired."
         _write_license(payload)
         payload = _read_license_file() or payload
-        return _build_state(payload, ok=False, allows_runtime=False, reason=str(payload.get("disable_reason") or "The private deployment license has expired."), source="local_expiration_check", fingerprint_match=True, signature_valid=True)
+        return _build_state(
+            payload,
+            ok=False,
+            allows_runtime=False,
+            reason=str(payload.get("disable_reason") or "The private deployment license has expired."),
+            source="local_expiration_check",
+            fingerprint_match=True,
+            signature_valid=True,
+        )
 
     status = str(payload.get("status") or DEFAULT_LICENSE_STATUS).strip().lower()
-    if status not in LICENSE_STATUSES_ALLOWING_RUNTIME:
-        return _build_state(payload, ok=False, allows_runtime=False, reason=str(payload.get("disable_reason") or f"License status '{status}' does not allow this deployment to run."), source="local_status_check", fingerprint_match=True, signature_valid=True)
 
-    if _remote_validation_enabled(payload):
+    if _remote_validation_enabled(payload) and (force or _remote_check_due(payload)):
         try:
             remote_payload = _post_remote_validation(payload)
             payload = _write_remote_result(payload, remote_payload)
             status = str(payload.get("status") or DEFAULT_LICENSE_STATUS).strip().lower()
+
             if status in LICENSE_STATUSES_ALLOWING_RUNTIME:
-                return _build_state(payload, ok=True, allows_runtime=True, reason="License validated successfully.", source="remote_validation", fingerprint_match=True, signature_valid=True)
-            return _build_state(payload, ok=False, allows_runtime=False, reason=str(payload.get("disable_reason") or f"Remote licensing returned status '{status}'."), source="remote_validation", fingerprint_match=True, signature_valid=True)
+                return _build_state(
+                    payload,
+                    ok=True,
+                    allows_runtime=True,
+                    reason="License validated successfully.",
+                    source="remote_validation",
+                    fingerprint_match=True,
+                    signature_valid=True,
+                )
+
+            return _build_state(
+                payload,
+                ok=False,
+                allows_runtime=False,
+                reason=str(payload.get("disable_reason") or f"Remote licensing returned status '{status}'."),
+                source="remote_validation",
+                fingerprint_match=True,
+                signature_valid=True,
+            )
         except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
-            if _within_offline_grace(payload):
-                return _build_state(payload, ok=True, allows_runtime=True, reason=f"Remote license validation is unavailable. Running within offline grace period. {exc}", source="offline_grace", fingerprint_match=True, signature_valid=True)
-            return _build_state(payload, ok=False, allows_runtime=False, reason=f"Remote license validation is unavailable and the offline grace period has expired. {exc}", source="offline_grace_expired", fingerprint_match=True, signature_valid=True)
+            if status in LICENSE_STATUSES_ALLOWING_RUNTIME and _within_offline_grace(payload):
+                return _build_state(
+                    payload,
+                    ok=True,
+                    allows_runtime=True,
+                    reason=f"Remote license validation is unavailable. Running within offline grace period. {exc}",
+                    source="offline_grace",
+                    fingerprint_match=True,
+                    signature_valid=True,
+                )
 
-    return _build_state(payload, ok=True, allows_runtime=True, reason="Local bootstrap license is active.", source="local_bootstrap", fingerprint_match=True, signature_valid=True)
+            if status not in LICENSE_STATUSES_ALLOWING_RUNTIME:
+                return _build_state(
+                    payload,
+                    ok=False,
+                    allows_runtime=False,
+                    reason=str(payload.get("disable_reason") or f"License status '{status}' does not allow this deployment to run."),
+                    source="local_status_check",
+                    fingerprint_match=True,
+                    signature_valid=True,
+                )
+
+            return _build_state(
+                payload,
+                ok=False,
+                allows_runtime=False,
+                reason=f"Remote license validation is unavailable and the offline grace period has expired. {exc}",
+                source="offline_grace_expired",
+                fingerprint_match=True,
+                signature_valid=True,
+            )
+
+    if status not in LICENSE_STATUSES_ALLOWING_RUNTIME:
+        return _build_state(
+            payload,
+            ok=False,
+            allows_runtime=False,
+            reason=str(payload.get("disable_reason") or f"License status '{status}' does not allow this deployment to run."),
+            source="local_status_check",
+            fingerprint_match=True,
+            signature_valid=True,
+        )
+
+    return _build_state(
+        payload,
+        ok=True,
+        allows_runtime=True,
+        reason="Local bootstrap license is active.",
+        source="local_bootstrap" if not payload.get("last_remote_check_at") else "cached_active_license",
+        fingerprint_match=True,
+        signature_valid=True,
+    )
 
 
-def get_license_status_payload() -> dict[str, Any]:
-    state = get_license_state()
+def get_license_state(force_refresh: bool = False) -> LicenseState:
+    return refresh_license_state(force=force_refresh)
+
+
+def get_license_status_payload(force_refresh: bool = False) -> dict[str, Any]:
+    state = get_license_state(force_refresh=force_refresh)
     return {"ok": state.ok, "app": APP_NAME, "version": APP_VERSION, "license": state.to_dict()}
 
 
 def _print_status() -> int:
-    print(json.dumps(get_license_status_payload(), indent=2))
+    print(json.dumps(get_license_status_payload(force_refresh=True), indent=2))
     return 0
 
 
