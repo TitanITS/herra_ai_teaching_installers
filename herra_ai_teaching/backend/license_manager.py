@@ -25,7 +25,7 @@ DEFAULT_BOOTSTRAP_TERM_DAYS = 365
 LICENSE_STATUSES_ALLOWING_RUNTIME = {"active"}
 
 DEFAULT_ACTIVE_REVALIDATE_SECONDS = 120
-DEFAULT_INACTIVE_REVALIDATE_SECONDS = 30
+DEFAULT_INACTIVE_REVALIDATE_SECONDS = 15
 
 PROGRAM_DATA_ROOT = Path(os.getenv("PROGRAMDATA", r"C:\ProgramData"))
 LICENSE_BASE_DIR = PROGRAM_DATA_ROOT / "TitanITS" / "HerraAITeaching"
@@ -478,6 +478,30 @@ def _remote_check_due(payload: dict[str, Any]) -> bool:
     return _utc_now() >= last_remote_check_at + timedelta(seconds=interval_seconds)
 
 
+def _evaluate_local_only(payload: dict[str, Any]) -> LicenseState:
+    status = str(payload.get("status") or DEFAULT_LICENSE_STATUS).strip().lower()
+    if status not in LICENSE_STATUSES_ALLOWING_RUNTIME:
+        return _build_state(
+            payload,
+            ok=False,
+            allows_runtime=False,
+            reason=str(payload.get("disable_reason") or f"License status '{status}' does not allow this deployment to run."),
+            source="local_status_check",
+            fingerprint_match=True,
+            signature_valid=True,
+        )
+
+    return _build_state(
+        payload,
+        ok=True,
+        allows_runtime=True,
+        reason="Local bootstrap license is active.",
+        source="local_bootstrap" if not payload.get("last_remote_check_at") else "cached_active_license",
+        fingerprint_match=True,
+        signature_valid=True,
+    )
+
+
 def refresh_license_state(force: bool = False) -> LicenseState:
     payload = bootstrap_license_if_missing()
 
@@ -527,7 +551,7 @@ def refresh_license_state(force: bool = False) -> LicenseState:
 
     status = str(payload.get("status") or DEFAULT_LICENSE_STATUS).strip().lower()
 
-    if _remote_validation_enabled(payload) and (force or _remote_check_due(payload)):
+    if _remote_validation_enabled(payload) and (force or _remote_check_due(payload) or status not in LICENSE_STATUSES_ALLOWING_RUNTIME):
         try:
             remote_payload = _post_remote_validation(payload)
             payload = _write_remote_result(payload, remote_payload)
@@ -586,26 +610,7 @@ def refresh_license_state(force: bool = False) -> LicenseState:
                 signature_valid=True,
             )
 
-    if status not in LICENSE_STATUSES_ALLOWING_RUNTIME:
-        return _build_state(
-            payload,
-            ok=False,
-            allows_runtime=False,
-            reason=str(payload.get("disable_reason") or f"License status '{status}' does not allow this deployment to run."),
-            source="local_status_check",
-            fingerprint_match=True,
-            signature_valid=True,
-        )
-
-    return _build_state(
-        payload,
-        ok=True,
-        allows_runtime=True,
-        reason="Local bootstrap license is active.",
-        source="local_bootstrap" if not payload.get("last_remote_check_at") else "cached_active_license",
-        fingerprint_match=True,
-        signature_valid=True,
-    )
+    return _evaluate_local_only(payload)
 
 
 def get_license_state(force_refresh: bool = False) -> LicenseState:

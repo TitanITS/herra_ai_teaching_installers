@@ -52,7 +52,7 @@ PROTECTED_API_PREFIXES = (
 )
 
 LICENSE_STATUS_PATH = "/server/license/status"
-BACKGROUND_REVALIDATE_LOOP_SECONDS = 30
+BACKGROUND_REVALIDATE_LOOP_SECONDS = 15
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 
@@ -60,7 +60,7 @@ app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 async def _license_revalidation_loop() -> None:
     while True:
         try:
-            get_license_state(force_refresh=False)
+            get_license_state(force_refresh=True)
         except Exception:
             pass
         await asyncio.sleep(BACKGROUND_REVALIDATE_LOOP_SECONDS)
@@ -111,6 +111,10 @@ async def license_enforcement_middleware(request: Request, call_next):
 
     if any(path.startswith(prefix) for prefix in PROTECTED_API_PREFIXES):
         license_state = get_license_state(force_refresh=False)
+
+        if not license_state.allows_runtime:
+            license_state = get_license_state(force_refresh=True)
+
         if not license_state.allows_runtime:
             return JSONResponse(
                 status_code=403,
@@ -139,7 +143,7 @@ app.include_router(chat_router)
 
 @app.get("/server/health")
 def server_health() -> dict[str, object]:
-    license_state = get_license_state(force_refresh=False)
+    license_state = get_license_state(force_refresh=True)
     return {
         "ok": True,
         "app": APP_TITLE,
@@ -160,7 +164,7 @@ def server_health() -> dict[str, object]:
 
 @app.get(LICENSE_STATUS_PATH)
 def server_license_status() -> dict[str, object]:
-    return get_license_status_payload(force_refresh=False)
+    return get_license_status_payload(force_refresh=True)
 
 
 if FRONTEND_ASSETS_DIR.exists():
